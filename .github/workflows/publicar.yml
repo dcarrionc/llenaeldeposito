@@ -1,0 +1,57 @@
+name: Actualizar precios y publicar
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Descomprimir proyecto
+        run: unzip -oq sitio.zip
+      - name: Generar web con precios oficiales
+        working-directory: gasolineras
+        env:
+          SITE_NAME: ${{ vars.SITE_NAME }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+          OWNER_NAME: ${{ vars.OWNER_NAME }}
+          OWNER_NIF: ${{ vars.OWNER_NIF }}
+          OWNER_ADDRESS: ${{ vars.OWNER_ADDRESS }}
+          ADSENSE_CLIENT: ${{ vars.ADSENSE_CLIENT }}
+          ADSENSE_SLOT_SIDE1: ${{ vars.ADSENSE_SLOT_SIDE1 }}
+          ADSENSE_SLOT_SIDE2: ${{ vars.ADSENSE_SLOT_SIDE2 }}
+          ADSENSE_SLOT_BELOWLIST: ${{ vars.ADSENSE_SLOT_BELOWLIST }}
+          GA_ID: ${{ vars.GA_ID }}
+        run: node scripts/build.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: gasolineras/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
